@@ -5,6 +5,7 @@ enable_language(ASM)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 
 add_definitions(-DPPSSPP)
+add_definitions(-D__STDC_CONSTANT_MACROS)
 
 # Of the CMake platforms, only Android supports Vulkan.
 if(NOT ANDROID)
@@ -23,10 +24,10 @@ if(CMAKE_SYSTEM_PROCESSOR)
 	elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^aarch64")
 	  set(ARM64 ON)
 	  add_definitions(-DARM64)
-	elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^x86" OR
-		${CMAKE_SYSTEM_PROCESSOR} MATCHES "^amd64" OR
-		${CMAKE_SYSTEM_PROCESSOR} MATCHES "i.86")
+	elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^x86" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "i.86")
 		set(X86 ON)
+	elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^amd64")
+    set(X86_64 ON)
 	elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "^mips")
 		set(MIPS ON)
 	else()
@@ -53,7 +54,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
-    set(ANDROID ON)
+  set(ANDROID ON)
 endif()
 
 if(NOT DEFINED HEADLESS)
@@ -71,6 +72,7 @@ option(ARMV7 "Set to ON if targeting an ARMv7 processor" ${ARMV7})
 option(ARM "Set to ON if targeting an ARM processor" ${ARM})
 option(MIPS "Set to ON if targeting a MIPS processor" ${MIPS})
 option(X86 "Set to ON if targeting an X86 processor" ${X86})
+option(X86_64 "Set to ON if targeting an X86_64 processor" ${X86_64})
 # :: Environments
 option(USING_EGL "Set to ON if target environment uses EGL" ${USING_EGL})
 option(USING_FBDEV "Set to ON if target environment uses fbdev (eg. Pandora)" ${USING_FBDEV})
@@ -134,41 +136,32 @@ if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+message("CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+
+# Let's not use elseif here so we can catch dupes.
 if(ARMV7)
 	message("Generating for ARMv7, ${CMAKE_BUILD_TYPE}")
-elseif(ARM)
-	message("Generating for ARMv6, ${CMAKE_BUILD_TYPE}")
-elseif(MIPS AND X86)
+endif()
+if(ARM)
+	message("Generating for ARM, ${CMAKE_BUILD_TYPE}")
+endif()
+if(MIPS AND X86)
 	message("Generating for MIPS in x86 mode, ${CMAKE_BUILD_TYPE}")
-elseif(MIPS)
+endif()
+if(MIPS)
 	message("Generating for MIPS, ${CMAKE_BUILD_TYPE}")
-elseif(X86)
+endif()
+if(X86)
 	message("Generating for x86, ${CMAKE_BUILD_TYPE}")
-elseif(ARM64)
+endif()
+if(X86_64)
+	message("Generating for x86_64, ${CMAKE_BUILD_TYPE}")
+endif()
+if(ARM64)
   message("Generating for ARMv8, ${CMAKE_BUILD_TYPE}")
-else()
-	message("What? Generating for Generic, ${CMAKE_BUILD_TYPE}")
 endif()
 
 if(NOT MSVC)
-<<<<<<< 7276d8f5b6dc38c176564b751406680331cb1e24
-	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -D_DEBUG")
-	set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os -D_NDEBUG")
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -D_NDEBUG")
-	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -D_NDEBUG")
-	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -D_DEBUG")
-	set(CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} -Os -D_NDEBUG")
-	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -D_NDEBUG")
-	set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O2 -g -D_NDEBUG")
-
-    #TODO: Remove this and include the file properly everywhere it makes sense
-    # First step is too use the macros everywhere
-    # Second step is to remove the compatibility defines
-    # Third step is to include the file
-    # Fourth step is to remove that line!
-    add_compile_options(-include ${CMAKE_CURRENT_SOURCE_DIR}/ppsspp_config.h)
-
-=======
   if (NOT ANDROID)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -D_DEBUG")
     set(CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os -D_NDEBUG")
@@ -179,8 +172,13 @@ if(NOT MSVC)
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -D_NDEBUG")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -O2 -g -D_NDEBUG")
   endif()
- 
->>>>>>> It builds! At least for aarch64
+	#TODO: Remove this and include the file properly everywhere it makes sense
+	# First step is too use the macros everywhere
+	# Second step is to remove the compatibility defines
+	# Third step is to include the file
+	# Fourth step is to remove that line!
+	add_compile_options(-include ${CMAKE_CURRENT_SOURCE_DIR}/ppsspp_config.h)
+
 	# Disable some warnings
 	add_definitions(-Wno-multichar)
 	add_definitions(-fno-strict-aliasing)
@@ -188,7 +186,7 @@ if(NOT MSVC)
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -parallel -fopenmp")
 	endif()
 
-	if(X86 AND NOT MIPS)
+	if((X86 OR X86_64) AND NOT MIPS)   # What's with the AND NOT MIPS?
 		# enable sse2 code generation
 		add_definitions(-msse2)
 	endif()
@@ -397,6 +395,8 @@ if(USE_FFMPEG)
 					set(PLATFORM_ARCH "android/armv7")
 				elseif(ARM)
 					set(PLATFORM_ARCH "android/arm")
+				elseif(X86_64)   # Before X86 since both may be defined... gah
+					set(PLATFORM_ARCH "android/x86_64")
 				elseif(X86)
 					set(PLATFORM_ARCH "android/x86")
 				elseif(ARM64)
@@ -711,7 +711,7 @@ if(ARMV7)
 	set(nativeExtra ${nativeExtra}
 		ext/native/math/fast/fast_matrix_neon.S)
 endif()
-if(X86 AND NOT MIPS)
+if((X86 OR X86_64) AND NOT MIPS)
 	set(nativeExtra ${nativeExtra}
 		ext/native/math/fast/fast_matrix_sse.c)
 endif()
@@ -730,12 +730,9 @@ if(ANDROID)
 		ext/native/base/NativeApp.h
 		android/jni/app-android.cpp
 		android/jni/native_audio.cpp
-		android/jni/native_audio.h)
-
-	add_library(native_audio SHARED
+		android/jni/native_audio.h
 		android/jni/native-audio-so.cpp
 		android/jni/native-audio-so.h)
-	target_link_libraries(native_audio OpenSLES log)
 	# No target
 elseif(IOS)
 	set(nativeExtra ${nativeExtra}
@@ -1013,10 +1010,10 @@ if (LINUX AND NOT ANDROID)
 	SET(RT_LIB rt)
 endif()
 
-target_link_libraries(native ${LIBZIP_LIBRARY} ${ZLIB_LIBRARY} ${PNG_LIBRARY} rg_etc1 vjson snappy udis86 ${RT_LIB} ${GLEW_LIBRARIES} ${nativeExtraLibs})
+target_link_libraries(native ${LIBZIP_LIBRARY} ${ZLIB_LIBRARY} ${PNG_LIBRARY} rg_etc1 vjson snappy udis86 ${RT_LIB} ${GLEW_LIBRARIES} ${nativeExtraLibs} atomic)
 
 if(ANDROID)
-	target_link_libraries(native log EGL)
+	target_link_libraries(native log EGL OpenSLES)
 elseif(WIN32)
 	target_link_libraries(native ws2_32 winmm)
 endif()
@@ -1058,10 +1055,6 @@ include_directories(ext/xxhash)
 
 set(CoreExtra)
 set(CoreExtraLibs)
-
-if(ANDROID)
-  set(CoreExtraLibs ${CoreExtraLibs} native_audio)
-endif()
 
 if(VULKAN)
   set(CoreExtraLibs ${CoreExtraLibs} glslang)
