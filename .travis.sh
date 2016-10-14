@@ -33,6 +33,10 @@ travis_before_install() {
         brew update
         brew_install ccache
     fi
+
+    wget https://github.com/Commit451/android-cmake-installer/releases/download/1.1.0/install-cmake.sh
+    chmod +x install-cmake.sh
+    ./install-cmake.sh
 }
 
 setup_ccache_script() {
