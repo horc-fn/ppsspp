@@ -2,7 +2,7 @@
 
 export USE_CCACHE=1
 export NDK_CCACHE=ccache
-NDK_VER=android-ndk-r12b
+NDK_VER=android-ndk-r13
 
 download_extract() {
     aria2c -x 16 $1 -o $2
@@ -34,9 +34,12 @@ travis_before_install() {
         brew_install ccache
     fi
 
-    wget https://github.com/Commit451/android-cmake-installer/releases/download/1.1.0/install-cmake.sh
-    chmod +x install-cmake.sh
-    ./install-cmake.sh
+    if [ "$PPSSPP_BUILD_TYPE" = "Android" ]; then
+        export ANDROID_HOME=$(pwd)/${NDK_VER} NDK=$(pwd)/${NDK_VER}
+        wget https://github.com/Commit451/android-cmake-installer/releases/download/1.1.0/install-cmake.sh
+        chmod +x install-cmake.sh
+        ./install-cmake.sh
+    fi
 }
 
 setup_ccache_script() {
@@ -116,9 +119,6 @@ travis_script() {
     fi
     if [ "$PPSSPP_BUILD_TYPE" = "Android" ]; then
         export ANDROID_HOME=$(pwd)/${NDK_VER} NDK=$(pwd)/${NDK_VER}
-        if [[ "$CXX" = *clang* ]]; then
-            export NDK_TOOLCHAIN_VERSION=clang
-        fi
 
         ./gradlew assembleRelease
     fi
