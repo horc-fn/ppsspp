@@ -33,13 +33,6 @@ travis_before_install() {
         brew update
         brew_install ccache
     fi
-
-    if [ "$PPSSPP_BUILD_TYPE" = "Android" ]; then
-        export ANDROID_HOME=$(pwd)/${NDK_VER} NDK=$(pwd)/${NDK_VER}
-        wget https://github.com/Commit451/android-cmake-installer/releases/download/1.1.0/install-cmake.sh
-        chmod +x install-cmake.sh
-        ./install-cmake.sh
-    fi
 }
 
 setup_ccache_script() {
@@ -120,6 +113,7 @@ travis_script() {
     if [ "$PPSSPP_BUILD_TYPE" = "Android" ]; then
         export ANDROID_HOME=$(pwd)/${NDK_VER} NDK=$(pwd)/${NDK_VER}
 
+        chmod +x gradlew
         ./gradlew assembleRelease
     fi
     if [ "$PPSSPP_BUILD_TYPE" = "iOS" ]; then
