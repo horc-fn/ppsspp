@@ -352,7 +352,7 @@ setup_target_project(Common Common)
 
 if(WIN32)
 	include_directories(dx9sdk/Include)
-	target_link_libraries(Common winmm d3d9 dsound)
+	target_link_libraries(Common winmm d3d9 dxguid dsound)
 endif()
 
 if(TARGET SDL2::SDL2)
@@ -382,6 +382,10 @@ if(SNAPPY_FOUND)
 	add_definitions(-DSHARED_SNAPPY)
 else()
 	add_subdirectory(ext/snappy)
+endif()
+
+if(WIN32)
+	add_subdirectory(ext/armips)
 endif()
 
 add_subdirectory(ext/udis86)
@@ -720,7 +724,6 @@ else()
 		ext/native/ext/libpng17/pngrutil.c
 		ext/native/ext/libpng17/pngset.c
 		ext/native/ext/libpng17/pngstruct.h
-		ext/native/ext/libpng17/pngtest.c
 		ext/native/ext/libpng17/pngtrans.c
 		ext/native/ext/libpng17/pngwio.c
 		ext/native/ext/libpng17/pngwrite.c
@@ -845,7 +848,11 @@ elseif(TARGET SDL2::SDL2)
 elseif(WIN32)
 	# Don't care about SDL.
 	set(TargetBin PPSSPPWindows)
-	link_directories(dx9sdk/Lib/x64)
+	if(X86_64)
+		link_directories(dx9sdk/Lib/x64)
+	else()
+		link_directories(dx9sdk/Lib/x86)
+	endif()
 else()
 	message(FATAL_ERROR "Could not find SDL2. Failing.")
 endif()
@@ -1265,6 +1272,7 @@ set(GPU_D3D9
 	GPU/Directx9/ShaderManagerDX9.h
 	GPU/Directx9/StateMappingDX9.cpp
 	GPU/Directx9/StateMappingDX9.h
+	GPU/Directx9/StencilBufferDX9.cpp
 	GPU/Directx9/TextureCacheDX9.cpp
 	GPU/Directx9/TextureCacheDX9.h
 	GPU/Directx9/TextureScalerDX9.cpp
@@ -1816,9 +1824,10 @@ set(WindowsFiles
 	Windows/stdafx.cpp
 	Windows/stdafx.h)
 
+list(APPEND LinkCommon ${CoreLibName} ${CMAKE_THREAD_LIBS_INIT})
+
 if(WIN32)
-	set(LinkCommon ${LinkCommon}
-		kernel32 user32 gdi32 shell32 comctl32 dsound xinput)
+	list(APPEND LinkCommon kernel32 user32 gdi32 shell32 comctl32 dsound xinput armips)
 	#setup_target_project(${TargetBin} Windows)
 	list(APPEND NativeAppSource ${WindowsFiles})
 endif()
@@ -1832,8 +1841,6 @@ set(NativeAssets
 	assets/langregion.ini
 	assets/gamecontrollerdb.txt
 	assets/unknown.png)
-
-set(LinkCommon ${CoreLibName} ${CMAKE_THREAD_LIBS_INIT})
 
 
 if(HEADLESS)
@@ -1886,8 +1893,12 @@ if (TargetBin)
 		endif()
 
 		add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource})
+	elif(WIN32)
+		add_executable(${TargetBin} WIN ${NativeAppSource})
 	else()
 		add_executable(${TargetBin} ${NativeAppSource})
+		set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${TargetBin})
+		set_target_properties(${TargetBin} PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
 	endif()
 	target_link_libraries(${TargetBin} ${LinkCommon} Common)
 endif()
