@@ -223,6 +223,7 @@ else()
 	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 	add_definitions(-D_UNICODE -DUNICODE)
 	add_definitions(-DUSING_WIN_UI)
+	add_definitions(-MP)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_DEBUG")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -D_NDEBUG")
 endif()
@@ -350,8 +351,10 @@ include_directories(Common)
 setup_target_project(Common Common)
 
 if(WIN32)
-	target_link_libraries(Common winmm)
+	include_directories(dx9sdk/Include)
+	target_link_libraries(Common winmm d3d9 dsound)
 endif()
+
 if(TARGET SDL2::SDL2)
 	target_link_libraries(Common SDL2::SDL2)
 endif()
@@ -841,6 +844,8 @@ elseif(TARGET SDL2::SDL2)
 	set(TargetBin PPSSPPSDL)
 elseif(WIN32)
 	# Don't care about SDL.
+	set(TargetBin PPSSPPWindows)
+	link_directories(dx9sdk/Lib/x64)
 else()
 	message(FATAL_ERROR "Could not find SDL2. Failing.")
 endif()
@@ -888,6 +893,11 @@ endif()
 set(THIN3D_PLATFORMS ext/native/thin3d/thin3d_gl.cpp)
 if(VULKAN)
   set(THIN3D_PLATFORMS ${THIN3D_PLATFORMS} ext/native/thin3d/thin3d_vulkan.cpp)
+endif()
+if(WIN32)
+  set(THIN3D_PLATFORMS ${THIN3D_PLATFORMS} ext/native/thin3d/thin3d_d3d9.cpp)
+  set(THIN3D_PLATFORMS ${THIN3D_PLATFORMS} ext/native/thin3d/d3dx9_loader.cpp)
+  set(THIN3D_PLATFORMS ${THIN3D_PLATFORMS} ext/native/thin3d/d3dx9_loader.h)
 endif()
 
 add_library(native STATIC
@@ -1240,9 +1250,42 @@ set(GPU_VULKAN
 	GPU/Vulkan/VulkanUtil.h
 )
 
+set(GPU_D3D9
+  GPU/Directx9/DepalettizeShaderDX9.cpp
+	GPU/Directx9/DepalettizeShaderDX9.h
+	GPU/Directx9/DrawEngineDX9.cpp
+	GPU/Directx9/DrawEngineDX9.h
+	GPU/Directx9/PixelShaderGeneratorDX9.cpp
+	GPU/Directx9/PixelShaderGeneratorDX9.h
+	GPU/Directx9/FramebufferDX9.cpp
+	GPU/Directx9/FramebufferDX9.h
+	GPU/Directx9/GPU_DX9.cpp
+	GPU/Directx9/GPU_DX9.h
+	GPU/Directx9/ShaderManagerDX9.cpp
+	GPU/Directx9/ShaderManagerDX9.h
+	GPU/Directx9/StateMappingDX9.cpp
+	GPU/Directx9/StateMappingDX9.h
+	GPU/Directx9/TextureCacheDX9.cpp
+	GPU/Directx9/TextureCacheDX9.h
+	GPU/Directx9/TextureScalerDX9.cpp
+	GPU/Directx9/TextureScalerDX9.h
+	GPU/Directx9/VertexShaderGeneratorDX9.cpp
+	GPU/Directx9/VertexShaderGeneratorDX9.h
+	GPU/Directx9/helper/dx_fbo.cpp
+	GPU/Directx9/helper/dx_fbo.h
+	GPU/Directx9/helper/dx_state.cpp
+	GPU/Directx9/helper/dx_state.h
+	GPU/Directx9/helper/global.cpp
+	GPU/Directx9/helper/global.h
+)
+
+
 set(GPU_IMPLS ${GPU_GLES})
 if(VULKAN)
   set(GPU_IMPLS ${GPU_IMPLS} ${GPU_VULKAN})
+endif()
+if(WIN32)
+	list(APPEND GPU_IMPLS ${GPU_D3D9})
 endif()
 
 if(ARMV7 OR ARM64)
@@ -1681,76 +1724,103 @@ add_library(glslang
   ext/glslang/SPIRV/SPVRemapper.cpp
   ext/glslang/OGLCompilersDLL/InitializeDll.cpp)
 
+set(WindowsFiles
+	Windows/DSoundStream.cpp
+	Windows/DSoundStream.h
+	Windows/Debugger/CPURegsInterface.h
+	Windows/Debugger/BreakpointWindow.cpp
+	Windows/Debugger/BreakpointWindow.h
+	Windows/Debugger/DumpMemoryWindow.cpp
+	Windows/Debugger/DumpMemoryWindow.h
+	Windows/Debugger/CtrlDisAsmView.cpp
+	Windows/Debugger/CtrlDisAsmView.h
+	Windows/Debugger/CtrlMemView.cpp
+	Windows/Debugger/CtrlMemView.h
+	Windows/Debugger/CtrlRegisterList.cpp
+	Windows/Debugger/CtrlRegisterList.h
+	Windows/Debugger/Debugger.h
+	Windows/Debugger/DebuggerShared.cpp
+	Windows/Debugger/DebuggerShared.h
+	Windows/Debugger/Debugger_Disasm.cpp
+	Windows/Debugger/Debugger_Disasm.h
+	Windows/Debugger/Debugger_MemoryDlg.cpp
+	Windows/Debugger/Debugger_MemoryDlg.h
+	Windows/Debugger/Debugger_Lists.cpp
+	Windows/Debugger/Debugger_Lists.h
+	Windows/Debugger/Debugger_Misc.cpp
+	Windows/Debugger/Debugger_Misc.h
+	Windows/Debugger/Debugger_SymbolMap.h
+	Windows/Debugger/Debugger_VFPUDlg.cpp
+	Windows/Debugger/Debugger_VFPUDlg.h
+	Windows/Debugger/SimpleELF.h
+	Windows/GEDebugger/CtrlDisplayListView.cpp
+	Windows/GEDebugger/SimpleGLWindow.cpp
+	Windows/GEDebugger/TabState.cpp
+	Windows/GEDebugger/VertexPreview.cpp
+	Windows/GEDebugger/CtrlDisplayListView.h
+	Windows/GEDebugger/SimpleGLWindow.h
+	Windows/GEDebugger/TabState.h
+	Windows/GEDebugger/GEDebugger.cpp
+	Windows/GEDebugger/TabDisplayLists.cpp
+	Windows/GEDebugger/TabVertices.cpp
+	Windows/GEDebugger/GEDebugger.h
+	Windows/GEDebugger/TabDisplayLists.h
+	Windows/GEDebugger/TabVertices.h
+	Windows/DinputDevice.cpp
+	Windows/DinputDevice.h
+	Windows/DSoundStream.cpp
+	Windows/DSoundStream.h
+	Windows/EmuThread.cpp
+	Windows/EmuThread.h
+	Windows/GeDebugger/GeDebugger.cpp
+	Windows/Globals.cpp
+	Windows/GPU/D3D9Context.cpp
+	Windows/GPU/D3D9Context.h
+	Windows/GPU/WindowsGLContext.cpp
+	Windows/GPU/WindowsVulkanContext.cpp
+	Windows/InputBox.cpp
+	Windows/InputBox.h
+	Windows/InputDevice.cpp
+	Windows/InputDevice.h
+	Windows/KeyboardDevice.cpp
+	Windows/KeyboardDevice.h
+	Windows/W32Util/DialogManager.cpp
+	Windows/W32Util/DialogManager.h
+	Windows/W32Util/Misc.cpp
+	Windows/W32Util/Misc.h
+	Windows/W32Util/PropertySheet.cpp
+	Windows/W32Util/PropertySheet.h
+	Windows/W32Util/ShellUtil.cpp
+	Windows/W32Util/ShellUtil.h
+	Windows/W32Util/TabControl.cpp
+	Windows/W32Util/TabControl.h
+	Windows/W32Util/PropertySheet.cpp
+	Windows/W32Util/PropertySheet.h
+	Windows/WindowsHost.cpp
+	Windows/WindowsHost.h
+	Windows/MainWindow.cpp
+	Windows/MainWindow.h
+	Windows/MainWindowMenu.cpp
+	Windows/MainWindowMenu.h
+	Windows/RawInput.cpp
+	Windows/RawInput.h
+	Windows/TouchInputHandler.cpp
+	Windows/TouchInputHandler.h
+	Windows/XPTheme.h
+	Windows/XinputDevice.cpp
+	Windows/XinputDevice.h
+	Windows/main.cpp
+	Windows/main.h
+	Windows/ppsspp.rc
+	Windows/resource.h
+	Windows/stdafx.cpp
+	Windows/stdafx.h)
+
 if(WIN32)
-	add_executable(PPSSPPWindows WIN32
-		Windows/DSoundStream.cpp
-		Windows/DSoundStream.h
-		Windows/Debugger/CPURegsInterface.h
-		Windows/Debugger/BreakpointWindow.cpp
-		Windows/Debugger/BreakpointWindow.h
-		Windows/Debugger/DumpMemoryWindow.cpp
-		Windows/Debugger/DumpMemoryWindow.h
-		Windows/Debugger/CtrlDisAsmView.cpp
-		Windows/Debugger/CtrlDisAsmView.h
-		Windows/Debugger/CtrlMemView.cpp
-		Windows/Debugger/CtrlMemView.h
-		Windows/Debugger/CtrlRegisterList.cpp
-		Windows/Debugger/CtrlRegisterList.h
-		Windows/Debugger/Debugger.h
-		Windows/Debugger/DebuggerShared.cpp
-		Windows/Debugger/DebuggerShared.h
-		Windows/Debugger/Debugger_Disasm.cpp
-		Windows/Debugger/Debugger_Disasm.h
-		Windows/Debugger/Debugger_MemoryDlg.cpp
-		Windows/Debugger/Debugger_MemoryDlg.h
-		Windows/Debugger/Debugger_Lists.cpp
-		Windows/Debugger/Debugger_Lists.h
-		Windows/Debugger/Debugger_Misc.cpp
-		Windows/Debugger/Debugger_Misc.h
-		Windows/Debugger/Debugger_SymbolMap.h
-		Windows/Debugger/Debugger_VFPUDlg.cpp
-		Windows/Debugger/Debugger_VFPUDlg.h
-		Windows/Debugger/SimpleELF.h
-		Windows/EmuThread.cpp
-		Windows/EmuThread.h
-		Windows/GeDebugger/GeDebugger.cpp
-		Windows/Globals.cpp
-		Windows/GPU/WindowsGLContext.cpp
-		Windows/GPU/WindowsVulkanContext.cpp
-		Windows/InputBox.cpp
-		Windows/InputBox.h
-		Windows/InputDevice.cpp
-		Windows/InputDevice.h
-		Windows/KeyboardDevice.cpp
-		Windows/KeyboardDevice.h
-		Windows/W32Util/DialogManager.cpp
-		Windows/W32Util/DialogManager.h
-		Windows/W32Util/Misc.cpp
-		Windows/W32Util/Misc.h
-		Windows/W32Util/PropertySheet.cpp
-		Windows/W32Util/PropertySheet.h
-		Windows/W32Util/ShellUtil.cpp
-		Windows/W32Util/ShellUtil.h
-		Windows/W32Util/TabControl.cpp
-		Windows/W32Util/TabControl.h
-		Windows/WindowsHost.cpp
-		Windows/WindowsHost.h
-		Windows/MainWindow.cpp
-		Windows/MainWindow.h
-		Windows/MainWindowMenu.cpp
-		Windows/MainWindowMenu.h
-		Windows/XPTheme.h
-		Windows/XinputDevice.cpp
-		Windows/XinputDevice.h
-		Windows/main.cpp
-		Windows/main.h
-		Windows/ppsspp.rc
-		Windows/resource.h
-		Windows/stdafx.cpp
-		Windows/stdafx.h)
-	target_link_libraries(PPSSPPWindows ${CoreLibName}
+	set(LinkCommon ${LinkCommon}
 		kernel32 user32 gdi32 shell32 comctl32 dsound xinput)
-	setup_target_project(PPSSPPWindows Windows)
+	#setup_target_project(${TargetBin} Windows)
+	list(APPEND NativeAppSource ${WindowsFiles})
 endif()
 
 set(NativeAssets
@@ -1762,6 +1832,7 @@ set(NativeAssets
 	assets/langregion.ini
 	assets/gamecontrollerdb.txt
 	assets/unknown.png)
+
 set(LinkCommon ${CoreLibName} ${CMAKE_THREAD_LIBS_INIT})
 
 
