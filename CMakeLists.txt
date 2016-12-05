@@ -385,7 +385,7 @@ else()
 endif()
 
 if(WIN32)
-	add_subdirectory(ext/armips)
+	add_subdirectory(ext/cmake/armips)
 endif()
 
 add_subdirectory(ext/udis86)
